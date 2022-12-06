@@ -16,6 +16,12 @@ public class LudiiCppAI extends AI
 	
 	//-------------------------------------------------------------------------
 	
+	/** 
+	 * Path to our native library with C++-based AI code.
+	 * NOTE: should not include any file extension or path, just the name!
+	 */
+	protected static final String NATIVE_LIB_PATH = "LudiiCppAI";
+	
 	/** Our player index */
 	protected int player = -1;
 	
@@ -41,6 +47,7 @@ public class LudiiCppAI extends AI
 		final int maxDepth
 	)
 	{
+		// Call the native function to return an action
 		return nativeSelectAction(game, context, maxSeconds, maxIterations, maxDepth);
 	}
 	
@@ -48,6 +55,11 @@ public class LudiiCppAI extends AI
 	public void initAI(final Game game, final int playerID)
 	{
 		this.player = playerID;
+		
+		// Make sure our native code is loaded
+		System.loadLibrary(NATIVE_LIB_PATH);
+		
+		// Perform any C++-side init
 		nativeInitAI(game, playerID);
 	}
 	
