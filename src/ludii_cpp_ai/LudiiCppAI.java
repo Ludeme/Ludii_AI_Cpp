@@ -41,15 +41,44 @@ public class LudiiCppAI extends AI
 		final int maxDepth
 	)
 	{
-		// TODO call C++ AI
-		return null;
+		return nativeSelectAction(game, context, maxSeconds, maxIterations, maxDepth);
 	}
 	
 	@Override
 	public void initAI(final Game game, final int playerID)
 	{
 		this.player = playerID;
+		nativeInitAI(game, playerID);
 	}
+	
+	//-------------------------------------------------------------------------
+	
+	/**
+	 * Native (C++) version of selectAction()
+	 * 
+	 * @param game
+	 * @param context
+	 * @param maxSeconds
+	 * @param maxIterations
+	 * @param maxDepth
+	 * @return
+	 */
+	private native Move nativeSelectAction
+	(
+		final Game game, 
+		final Context context, 
+		final double maxSeconds,
+		final int maxIterations,
+		final int maxDepth
+	);
+	
+	/**
+	 * Native (C++) version of initAI()
+	 * 
+	 * @param game
+	 * @param playerID
+	 */
+	private native void nativeInitAI(final Game game, final int playerID);
 	
 	//-------------------------------------------------------------------------
 
