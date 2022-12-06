@@ -50,7 +50,7 @@ This can be done using the following BibTeX entry:
             editor      = "G. De Giacomo and A. Catala and B. Dilkina and M. Milano and S. Barro and A. Bugarín and J. Lang",
             series      = "Frontiers in Artificial Intelligence and Applications",
             volume      = "325",
-			publisher	= "IOS Press"
+	        publisher   = "IOS Press"
         }
 
 ## Background Info
