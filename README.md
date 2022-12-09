@@ -30,7 +30,7 @@ the project, and assumes that Ludii's main `jar` file has been put in the `/libs
 compiled Java class files in `/bin`, and the headers for native code in `/native/src`:
 
 ```
-javac -cp ./libs/* -d ./bin ./src/ludii_cpp_ai/LudiiCppAI.java -h ./native/src
+javac -cp ./libs/*.jar -d ./bin ./src/ludii_cpp_ai/LudiiCppAI.java -h ./native/src
 ```
 
 ## Compiling the C++ Code
@@ -38,8 +38,7 @@ javac -cp ./libs/* -d ./bin ./src/ludii_cpp_ai/LudiiCppAI.java -h ./native/src
 We run the following command to compile the C++ code, and put the compiled object in `/native/bin`:
 
 ```
-g++ -c -fPIC -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux ./native/src/ludii_cpp_ai_LudiiCppAI.cpp -o ./nat
-ive/bin/ludii_cpp_ai_LudiiCppAI.o
+g++ -c -fPIC -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux ./native/src/ludii_cpp_ai_LudiiCppAI.cpp -o ./native/bin/ludii_cpp_ai_LudiiCppAI.o
 ```
 
 ## Building the Shared Library

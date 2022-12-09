@@ -22,3 +22,10 @@ JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeCloseAI
   {
 	  std::cout << "native implementation for closeAI()!" << std::endl;
   }
+  
+JNIEXPORT jboolean JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSupportsGame
+  (JNIEnv* jenv, jobject jobjAI, jobject game)
+  {
+	  std::cout << "native implementation for supportsGame()!" << std::endl;
+	  return true;
+  }

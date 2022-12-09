@@ -2,3 +2,5 @@
 /.project
 /.classpath
 /native/bin/
+/ludii.trl
+/ludii_preferences.json

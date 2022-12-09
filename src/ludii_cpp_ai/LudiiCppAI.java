@@ -70,6 +70,12 @@ public class LudiiCppAI extends AI
 		nativeCloseAI();
 	}
 	
+	@Override
+	public boolean supportsGame(final Game game)
+	{
+		return nativeSupportsGame(game);
+	}
+	
 	//-------------------------------------------------------------------------
 	
 	/**
@@ -103,6 +109,13 @@ public class LudiiCppAI extends AI
 	 * Native (C++) version of closeAI()
 	 */
 	private native void nativeCloseAI();
+	
+	/**
+	 * Native (C++) version of supportsGame()
+	 * @param game
+	 * @return
+	 */
+	private native boolean nativeSupportsGame(final Game game);
 	
 	//-------------------------------------------------------------------------
 

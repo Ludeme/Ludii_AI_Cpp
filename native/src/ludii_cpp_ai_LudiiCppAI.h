@@ -31,6 +31,14 @@ JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeInitAI
 JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeCloseAI
   (JNIEnv *, jobject);
 
+/*
+ * Class:     ludii_cpp_ai_LudiiCppAI
+ * Method:    nativeSupportsGame
+ * Signature: (Lgame/Game;)Z
+ */
+JNIEXPORT jboolean JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSupportsGame
+  (JNIEnv *, jobject, jobject);
+
 #ifdef __cplusplus
 }
 #endif
