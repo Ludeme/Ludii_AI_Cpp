@@ -23,6 +23,14 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeInitAI
   (JNIEnv *, jobject, jobject, jint);
 
+/*
+ * Class:     ludii_cpp_ai_LudiiCppAI
+ * Method:    nativeCloseAI
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeCloseAI
+  (JNIEnv *, jobject);
+
 #ifdef __cplusplus
 }
 #endif

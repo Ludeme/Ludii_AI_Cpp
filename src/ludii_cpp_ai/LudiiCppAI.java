@@ -63,6 +63,13 @@ public class LudiiCppAI extends AI
 		nativeInitAI(game, playerID);
 	}
 	
+	@Override
+	public void closeAI()
+	{
+		// Call the native closeAI() method
+		nativeCloseAI();
+	}
+	
 	//-------------------------------------------------------------------------
 	
 	/**
@@ -91,6 +98,11 @@ public class LudiiCppAI extends AI
 	 * @param playerID
 	 */
 	private native void nativeInitAI(final Game game, final int playerID);
+	
+	/**
+	 * Native (C++) version of closeAI()
+	 */
+	private native void nativeCloseAI();
 	
 	//-------------------------------------------------------------------------
 
