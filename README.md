@@ -37,8 +37,19 @@ javac -cp ./libs/*.jar -d ./bin ./src/ludii_cpp_ai/LudiiCppAI.java -h ./native/s
 
 We run the following command to compile the C++ code, and put the compiled object in `/native/bin`:
 
+**Linux:**
 ```
 g++ -c -fPIC -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux ./native/src/ludii_cpp_ai_LudiiCppAI.cpp -o ./native/bin/ludii_cpp_ai_LudiiCppAI.o
+```
+
+**Windows:**
+```
+g++ -c -I"%JAVA_HOME%\include" -I"%JAVA_HOME%\include\win32" ./native/src/ludii_cpp_ai_LudiiCppAI.cpp -o ./native/bin/ludii_cpp_ai_LudiiCppAI.o
+```
+
+**MacOS (not tested!):**
+```
+g++ -c -fPIC -I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin ./native/src/ludii_cpp_ai_LudiiCppAI.cpp -o ./native/bin/ludii_cpp_ai_LudiiCppAI.o
 ```
 
 ## Building the Shared Library
