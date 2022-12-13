@@ -1,5 +1,7 @@
 package ludii_cpp_ai;
 
+import java.io.File;
+
 import game.Game;
 import other.AI;
 import other.context.Context;
@@ -17,18 +19,28 @@ public class LudiiCppAI extends AI
 	//-------------------------------------------------------------------------
 	
 	/** 
-	 * Path to our native library with C++-based AI code.
-	 * NOTE: should not include any file extension or path, just the name!
+	 * Name of our native library with C++-based AI code.
+	 * NOTE: should not include any file extension or path, just the name (without lib prefix on Linux/MacOS)!
 	 */
-	protected static final String NATIVE_LIB_PATH = "LudiiCppAI";
+	protected static final String NATIVE_LIB_FILE = "LudiiCppAI";
 	
 	/** Our player index */
 	protected int player = -1;
 	
 	static
 	{
-		// Make sure our native code is loaded
-		System.loadLibrary(NATIVE_LIB_PATH);
+		try
+		{
+			// Make sure our native code is loaded
+			System.loadLibrary(NATIVE_LIB_FILE);
+		}
+		catch (final java.lang.UnsatisfiedLinkError e)
+		{
+			System.err.println("Failed to load library: " + NATIVE_LIB_FILE);
+			System.err.println("java.library.path currently points to: " + new File(System.getProperty("java.library.path")).getAbsolutePath());
+			System.err.println("You can change this path by using the '-Djava.library.path=...' VM argument.");
+			throw e;
+		}
 	}
 	
 	//-------------------------------------------------------------------------
