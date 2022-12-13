@@ -33,6 +33,9 @@ public class LudiiCppAI extends AI
 		{
 			// Make sure our native code is loaded
 			System.loadLibrary(NATIVE_LIB_FILE);
+			
+			// Perform C++ side init
+			nativeStaticInit();
 		}
 		catch (final java.lang.UnsatisfiedLinkError e)
 		{
@@ -131,6 +134,11 @@ public class LudiiCppAI extends AI
 	 * @return
 	 */
 	private native boolean nativeSupportsGame(final Game game);
+	
+	/**
+	 * Let our native code do some initial static (game-independent) initialisation.
+	 */
+	private native static void nativeStaticInit();
 	
 	//-------------------------------------------------------------------------
 
