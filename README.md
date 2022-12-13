@@ -64,7 +64,7 @@ g++ -shared -fPIC -o ./libs/libLudiiCppAI.so ./native/bin/ludii_cpp_ai_LudiiCppA
 
 **Windows:**
 ```
-g++ -shared -o ./libs/libLudiiCppAI.dll ./native/bin/ludii_cpp_ai_LudiiCppAI.o -Wl,--add-stdcall-alias
+g++ -shared -o ./libs/LudiiCppAI.dll ./native/bin/ludii_cpp_ai_LudiiCppAI.o -Wl,--add-stdcall-alias
 ```
 
 **MacOS (not tested!):**
