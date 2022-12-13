@@ -25,6 +25,12 @@ public class LudiiCppAI extends AI
 	/** Our player index */
 	protected int player = -1;
 	
+	static
+	{
+		// Make sure our native code is loaded
+		System.loadLibrary(NATIVE_LIB_PATH);
+	}
+	
 	//-------------------------------------------------------------------------
 	
 	/**
@@ -55,9 +61,6 @@ public class LudiiCppAI extends AI
 	public void initAI(final Game game, final int playerID)
 	{
 		this.player = playerID;
-		
-		// Make sure our native code is loaded
-		System.loadLibrary(NATIVE_LIB_PATH);
 		
 		// Perform any C++-side init
 		nativeInitAI(game, playerID);

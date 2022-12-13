@@ -57,8 +57,19 @@ g++ -c -fPIC -I${JAVA_HOME}/include -I${JAVA_HOME}/include/darwin ./native/src/l
 We run the following command to build a shared library with native code that can be loaded from Java,
 and put it in `/libs` (alongside Ludii's `jar` file):
 
+**Linux:**
 ```
 g++ -shared -fPIC -o ./libs/libLudiiCppAI.so ./native/bin/ludii_cpp_ai_LudiiCppAI.o -lc
+```
+
+**Windows:**
+```
+g++ -shared -o ./libs/libLudiiCppAI.dll ./native/bin/ludii_cpp_ai_LudiiCppAI.o -Wl,--add-stdcall-alias
+```
+
+**MacOS (not tested!):**
+```
+g++ -dynamiclib -o ./libs/libLudiiCppAI.dylib ./native/bin/ludii_cpp_ai_LudiiCppAI.o -lc
 ```
 
 ## Citing Information
