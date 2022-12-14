@@ -3,6 +3,11 @@
 #include "ludii_cpp_ai_LudiiCppAI.h"
 
 namespace {
+
+	// NOTE: String descriptions of signatures of Java methods can be found by
+	// navigating to the directory containing the .class files and using:
+	//
+	// javap -s <ClassName>.class
 	
 	// Java classes we'll need
 	jclass clsLudiiGameWrapper;
@@ -23,43 +28,68 @@ namespace {
 		}
 	}
 
+	/**
+	 * Perform some static initialisation by caching all the Java classes and
+	 * Java Method IDs we need.
+	 */
 	JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeStaticInit
-	  (JNIEnv* jenv, jclass)
-	  {
-		  midLudiiGameWrapperCtor = jenv->GetMethodID();
-	  }
+	(JNIEnv* jenv, jclass)
+	{
+		clsLudiiGameWrapper = (jclass) jenv->NewGlobalRef(jenv->FindClass("utils/LudiiGameWrapper"));
+		CheckJniException(jenv);
+
+		midLudiiGameWrapperCtor = jenv->GetMethodID(clsLudiiGameWrapper, "<init>", "(Lgame/Game;)V");
+		CheckJniException(jenv);
+	}
 
 	JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
-		(JNIEnv* jenv, jobject jobjAI, jobject game, jobject context, jdouble maxSeconds, 
-		jint maxIterations, jint maxDepth)
-		{
-			std::cout << "native implementation for selectAction()!" << std::endl;
-			return nullptr;
-		}
-
+	(JNIEnv* jenv, jobject jobjAI, jobject game, jobject context, jdouble maxSeconds,
+	jint maxIterations, jint maxDepth)
+	{
+		std::cout << "native implementation for selectAction()!" << std::endl;
+		return nullptr;
+	}
 
 	JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeInitAI
-	  (JNIEnv* jenv, jobject jobjAI, jobject game, jint playerID)
-	  {
-		  std::cout << "native implementation for initAI()!" << std::endl;
-	  }
-
+	(JNIEnv* jenv, jobject jobjAI, jobject game, jint playerID)
+	{
+		// Nothing to do here
+	}
 
 	JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeCloseAI
-	  (JNIEnv* jenv, jobject jobjAI)
-	  {
-		  std::cout << "native implementation for closeAI()!" << std::endl;
-	  }
-	  
+	(JNIEnv* jenv, jobject jobjAI)
+	{
+		// Nothing to do here
+
+		// NOTE: could consider deleting the global refs for Java classes here,
+		// but then we'd also have to create them again in nativeInitAI(), instead
+		// of only in the nativeStaticInit() function
+	}
+
 	JNIEXPORT jboolean JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSupportsGame
-	  (JNIEnv* jenv, jobject jobjAI, jobject game)
-	  {
-		  // Our example UCT does not support stochastic games
-		  
-		  std::cout << "native implementation for supportsGame()!" << std::endl;
-		  
-		  // We support anything else
-		  return true;
-	  }
+	(JNIEnv* jenv, jobject jobjAI, jobject game)
+	{
+		// Wrap the game in a LudiiGameWrapper object
+		jobject wrappedGame = jenv=>NewObject(clsLudiiGameWrapper, midLudiiGameWrapperCtor, game);
+
+		// Our example UCT does not support stochastic games
+		if (TODO check is stochastic)
+		{
+			jenv->DeleteLocalRef(wrappedGame);
+			return false;
+		}
+
+		// We also don't support hidden info games
+		// TODO
+
+		// And we don't support games that are not alternating-move games
+		// TODO
+
+		// Always need to delete our local ref again
+		jenv->DeleteLocalRef(wrappedGame);
+
+		// We support anything else
+		return true;
+	}
 }
 
