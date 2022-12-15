@@ -14,6 +14,9 @@ namespace {
 	
 	// Java method IDs for all the methods we'll need to call
 	jmethodID midLudiiGameWrapperCtor;
+	jmethodID midIsStochasticGame;
+	jmethodID midIsImperfectInformationGame;
+	jmethodID midIsSimultaneousMoveGame;
 	
 	/**
 	 * It is good practice to call this after basically any call to a Java method
@@ -39,6 +42,15 @@ namespace {
 		CheckJniException(jenv);
 
 		midLudiiGameWrapperCtor = jenv->GetMethodID(clsLudiiGameWrapper, "<init>", "(Lgame/Game;)V");
+		CheckJniException(jenv);
+
+		midIsStochasticGame = jenv->GetMethodID(clsLudiiGameWrapper, "isStochasticGame", "()Z");
+		CheckJniException(jenv);
+
+		midIsImperfectInformationGame = jenv->GetMethodID(clsLudiiGameWrapper, "isImperfectInformationGame", "()Z");
+		CheckJniException(jenv);
+
+		midIsSimultaneousMoveGame = jenv->GetMethodID(clsLudiiGameWrapper, "isSimultaneousMoveGame", "()Z");
 		CheckJniException(jenv);
 	}
 
@@ -70,20 +82,28 @@ namespace {
 	(JNIEnv* jenv, jobject jobjAI, jobject game)
 	{
 		// Wrap the game in a LudiiGameWrapper object
-		jobject wrappedGame = jenv=>NewObject(clsLudiiGameWrapper, midLudiiGameWrapperCtor, game);
+		jobject wrappedGame = jenv->NewObject(clsLudiiGameWrapper, midLudiiGameWrapperCtor, game);
 
 		// Our example UCT does not support stochastic games
-		if (TODO check is stochastic)
+		if (jenv->CallBooleanMethod(wrappedGame, midIsStochasticGame))
 		{
 			jenv->DeleteLocalRef(wrappedGame);
 			return false;
 		}
 
 		// We also don't support hidden info games
-		// TODO
+		if (jenv->CallBooleanMethod(wrappedGame, midIsImperfectInformationGame))
+		{
+			jenv->DeleteLocalRef(wrappedGame);
+			return false;
+		}
 
-		// And we don't support games that are not alternating-move games
-		// TODO
+		// And we don't support simultaneous-move games
+		if (jenv->CallBooleanMethod(wrappedGame, midIsSimultaneousMoveGame))
+		{
+			jenv->DeleteLocalRef(wrappedGame);
+			return false;
+		}
 
 		// Always need to delete our local ref again
 		jenv->DeleteLocalRef(wrappedGame);
