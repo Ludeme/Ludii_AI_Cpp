@@ -2,8 +2,6 @@
 #include <stdexcept>
 #include "ludii_cpp_ai_LudiiCppAI.h"
 
-namespace {
-
 	// NOTE: String descriptions of signatures of Java methods can be found by
 	// navigating to the directory containing the .class files and using:
 	//
@@ -111,5 +109,4 @@ namespace {
 		// We support anything else
 		return true;
 	}
-}
 

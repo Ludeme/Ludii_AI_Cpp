@@ -33,9 +33,6 @@ public class LudiiCppAI extends AI
 		{
 			// Make sure our native code is loaded
 			System.loadLibrary(NATIVE_LIB_FILE);
-			
-			// Perform C++ side init
-			nativeStaticInit();
 		}
 		catch (final java.lang.UnsatisfiedLinkError e)
 		{
@@ -44,6 +41,9 @@ public class LudiiCppAI extends AI
 			System.err.println("You can change this path by using the '-Djava.library.path=...' VM argument.");
 			throw e;
 		}
+		
+		// Perform C++ side init
+		nativeStaticInit();
 	}
 	
 	//-------------------------------------------------------------------------
