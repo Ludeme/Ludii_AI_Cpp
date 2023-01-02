@@ -24,6 +24,7 @@ jmethodID midNumPlayers;
 
 jmethodID midLudiiStateWrapperCtor;
 jmethodID midLudiiStateWrapperCopyCtor;
+jmethodID midIsTerminal;
 
 /**
  * It is good practice to call this after basically any call to a Java method
@@ -74,6 +75,9 @@ JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeStaticInit
 
 	midLudiiStateWrapperCopyCtor = jenv->GetMethodID(clsLudiiStateWrapper, "<init>", "(Lutils/LudiiStateWrapper;)V");
 	CheckJniException(jenv);
+
+	midIsTerminal = jenv->GetMethodID(clsLudiiStateWrapper, "isTerminal", "()Z");
+	CheckJniException(jenv);
 }
 
 /**
@@ -108,6 +112,11 @@ struct MCTSNode {
 	uint32_t visitCount;
 };
 
+MCTSNode* Select(JNIEnv* jenv, MCTSNode* current) {
+	// TODO implement UCB1
+	return nullptr;
+}
+
 JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 (JNIEnv* jenv, jobject jobjAI, jobject game, jobject context, jdouble maxSeconds,
 		jint maxIterations, jint maxDepth)
@@ -134,6 +143,18 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 		const auto elapsedMillis = std::chrono::duration_cast<std::chrono::milliseconds>(now - begin).count();
 		if (elapsedMillis >= allowedMillis) {
 			break;
+		}
+
+		// Traverse the tree
+		MCTSNode* current = root.get();
+
+		while (true) {
+			if (jenv->CallBooleanMethod(current->wrappedState, midIsTerminal)) {
+				// Reached a terminal state in the tree
+				break;
+			}
+
+			current = Select(jenv, current);
 		}
 	}
 
