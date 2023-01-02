@@ -1,4 +1,6 @@
+#include <chrono>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -18,6 +20,7 @@ jmethodID midLudiiGameWrapperCtor;
 jmethodID midIsStochasticGame;
 jmethodID midIsImperfectInformationGame;
 jmethodID midIsSimultaneousMoveGame;
+jmethodID midNumPlayers;
 
 jmethodID midLudiiStateWrapperCtor;
 jmethodID midLudiiStateWrapperCopyCtor;
@@ -60,6 +63,9 @@ JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeStaticInit
 	CheckJniException(jenv);
 
 	midIsSimultaneousMoveGame = jenv->GetMethodID(clsLudiiGameWrapper, "isSimultaneousMoveGame", "()Z");
+	CheckJniException(jenv);
+
+	midNumPlayers = jenv->GetMethodID(clsLudiiGameWrapper, "numPlayers", "()I");
 	CheckJniException(jenv);
 
 	// State wrapper methods
@@ -110,6 +116,26 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 	jobject wrappedRootContext = jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCtor, wrappedGame, context);
 
 	auto root = std::make_shared<MCTSNode>(jenv, std::shared_ptr<MCTSNode>(), wrappedRootContext);
+	const int numPlayers = (int)jenv->CallIntMethod(wrappedGame, midNumPlayers);
+
+	// We'll respect time and iteration limits: ignore the maxDepth param
+	std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+	double allowedMillis = ((double) maxSeconds) * 1000.0;
+	if (allowedMillis <= 0.0)
+		allowedMillis = std::numeric_limits<double>::max();
+
+	int iterationsCap = (int) maxIterations;
+	if (iterationsCap <= 0)
+		iterationsCap = std::numeric_limits<int>::max();
+
+	int numIterations = 0;
+	while (numIterations < iterationsCap) {
+		std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+		const auto elapsedMillis = std::chrono::duration_cast<std::chrono::milliseconds>(now - begin).count();
+		if (elapsedMillis >= allowedMillis) {
+			break;
+		}
+	}
 
 	// Clean up local refs to Java objects we created
 	root->ClearAllJavaRefs(jenv);
