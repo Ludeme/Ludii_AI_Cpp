@@ -241,6 +241,29 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 			}
 
 			current = Select(jenv, current, rng);
+
+			if (current->visitCount == 0) {
+				// Expanded a new node: time for play-out
+				break;
+			}
+		}
+
+		jobject stateEnd = current->wrappedState;
+		bool ranPlayout = false;
+
+		if (!jenv->CallBooleanMethod(stateEnd, midIsTerminal)) {
+			// Not terminal yet, so run a play-out
+			ranPlayout = true;
+
+			// Need to copy in this case
+			stateEnd = jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCopyCtor, stateEnd);
+
+			// TODO actually run the playout
+		}
+
+		if (ranPlayout) {
+			// We copied state to run a playout, so will have to clean up ref
+			jenv->DeleteLocalRef(stateEnd);
 		}
 	}
 
