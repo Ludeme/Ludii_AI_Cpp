@@ -28,6 +28,7 @@ jmethodID midLudiiStateWrapperCtor;
 jmethodID midLudiiStateWrapperCopyCtor;
 jmethodID midIsTerminal;
 jmethodID midLegalMovesArray;
+jmethodID midApplyMove;
 
 /**
  * It is good practice to call this after basically any call to a Java method
@@ -84,16 +85,19 @@ JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeStaticInit
 
 	midLegalMovesArray = jenv->GetMethodID(clsLudiiStateWrapper, "legalMovesArray", "()[Lother/move/Move;");
 	CheckJniException(jenv);
+
+	midApplyMove = jenv->GetMethodID(clsLudiiStateWrapper, "applyMove", "(Lother/move/Move;)V");
+	CheckJniException(jenv);
 }
 
 /**
  * Node for MCTS
  */
 struct MCTSNode {
-	MCTSNode(JNIEnv* jenv, const std::shared_ptr<MCTSNode>& parent, jobject wrappedState) :
+	MCTSNode(JNIEnv* jenv, MCTSNode* parent, jobject wrappedState) :
 		parent(parent), visitCount(0) {
 
-		this->wrappedState = jenv->NewGlobalRef(jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCopyCtor, wrappedState));
+		this->wrappedState = jenv->NewGlobalRef(wrappedState);
 
 		const jobjectArray javaMovesArray =
 		      static_cast<jobjectArray>(jenv->CallObjectMethod(this->wrappedState, midLegalMovesArray));
@@ -132,12 +136,30 @@ struct MCTSNode {
 	std::vector<MCTSNode> childNodes;
 	std::vector<double> scoreSums;
 	jobject wrappedState;
-	std::weak_ptr<MCTSNode> parent;
+	MCTSNode* parent;
 	uint32_t visitCount;
 };
 
 MCTSNode* Select(JNIEnv* jenv, MCTSNode* current) {
-	// TODO implement UCB1
+	if (!current->unexpandedMoves.empty()) {
+		// Randomly select an unexpanded move. The vector was
+		// already shuffled after creation, so just pop the last
+		// element.
+		jobject unexpandedMove = current->unexpandedMoves.back();
+		current->unexpandedMoves.pop_back();
+
+		// Create copy of our state so we can apply move to it
+		jobject stateCopy = jenv->NewGlobalRef(jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCopyCtor, current->wrappedState));
+		jenv->CallVoidMethod(stateCopy, midApplyMove, unexpandedMove);
+
+		// No longer need this ref
+		jenv->DeleteGlobalRef(unexpandedMove);
+
+		// Create expanded node and return it
+		current->childNodes.emplace_back(jenv, current, stateCopy);
+		return &(current->childNodes.back());
+	}
+
 	return nullptr;
 }
 
@@ -148,7 +170,7 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 	jobject wrappedGame = jenv->NewObject(clsLudiiGameWrapper, midLudiiGameWrapperCtor, game);
 	jobject wrappedRootContext = jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCtor, wrappedGame, context);
 
-	auto root = std::make_shared<MCTSNode>(jenv, std::shared_ptr<MCTSNode>(), wrappedRootContext);
+	auto root = std::make_unique<MCTSNode>(jenv, nullptr, wrappedRootContext);
 	const int numPlayers = (int)jenv->CallIntMethod(wrappedGame, midNumPlayers);
 
 	// We'll respect time and iteration limits: ignore the maxDepth param
