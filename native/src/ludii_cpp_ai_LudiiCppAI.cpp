@@ -29,6 +29,7 @@ jmethodID midLudiiStateWrapperCopyCtor;
 jmethodID midIsTerminal;
 jmethodID midLegalMovesArray;
 jmethodID midApplyMove;
+jmethodID midCurrentPlayer;
 
 /**
  * It is good practice to call this after basically any call to a Java method
@@ -88,13 +89,16 @@ JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeStaticInit
 
 	midApplyMove = jenv->GetMethodID(clsLudiiStateWrapper, "applyMove", "(Lother/move/Move;)V");
 	CheckJniException(jenv);
+
+	midCurrentPlayer = jenv->GetMethodID(clsLudiiStateWrapper, "currentPlayer", "()I");
+	CheckJniException(jenv);
 }
 
 /**
  * Node for MCTS
  */
 struct MCTSNode {
-	MCTSNode(JNIEnv* jenv, MCTSNode* parent, jobject wrappedState) :
+	MCTSNode(JNIEnv* jenv, MCTSNode* parent, jobject wrappedState, const int32_t numPlayers, std::mt19937& rng) :
 		parent(parent), visitCount(0) {
 
 		this->wrappedState = jenv->NewGlobalRef(wrappedState);
@@ -107,8 +111,9 @@ struct MCTSNode {
 		for (jsize i = 0; i < numLegalMoves; ++i) {
 			unexpandedMoves.push_back(jenv->NewGlobalRef(jenv->GetObjectArrayElement(javaMovesArray, i)));
 		}
-		auto rng = std::default_random_engine{};
 		std::shuffle(std::begin(unexpandedMoves), std::end(unexpandedMoves), rng);
+
+		std::fill(scoreSums.begin(), scoreSums.begin() + numPlayers, 0.0);
 
 		jenv->DeleteLocalRef(javaMovesArray);
 	}
@@ -140,7 +145,7 @@ struct MCTSNode {
 	uint32_t visitCount;
 };
 
-MCTSNode* Select(JNIEnv* jenv, MCTSNode* current) {
+MCTSNode* Select(JNIEnv* jenv, MCTSNode* current, std::mt19937& rng) {
 	if (!current->unexpandedMoves.empty()) {
 		// Randomly select an unexpanded move. The vector was
 		// already shuffled after creation, so just pop the last
@@ -156,22 +161,57 @@ MCTSNode* Select(JNIEnv* jenv, MCTSNode* current) {
 		jenv->DeleteGlobalRef(unexpandedMove);
 
 		// Create expanded node and return it
-		current->childNodes.emplace_back(jenv, current, stateCopy);
+		current->childNodes.emplace_back(jenv, current, stateCopy, current->scoreSums.size(), rng);
 		return &(current->childNodes.back());
 	}
 
-	return nullptr;
+	// Use UCB1 equation to select from all children, with random tie-breaking
+	MCTSNode* bestChild = nullptr;
+	double bestValue = std::numeric_limits<double>::lowest();
+	const double twoTimesParentLog = 2.0 * std::log(std::max(1U, current->visitCount));
+	int32_t numBestFound = 0;
+
+	size_t numChildren = current->childNodes.size();
+	int32_t mover = (int32_t) jenv->CallIntMethod(current->wrappedState, midCurrentPlayer);
+
+	for (size_t i = 0; i < numChildren; ++i) {
+		MCTSNode* child = &(current->childNodes[i]);
+		const double exploit = child->scoreSums[mover] / child->visitCount;
+		const double explore = std::sqrt(twoTimesParentLog / child->visitCount);
+
+		const double ucb1Value = exploit + explore;
+
+		if (ucb1Value > bestValue) {
+			bestValue = ucb1Value;
+			bestChild = child;
+			++numBestFound;
+		}
+		else if (ucb1Value == bestValue) {
+			std::uniform_int_distribution<std::mt19937::result_type> dist(0, numBestFound + 1);
+
+			if (dist(rng) == 0) {
+				bestChild = child;
+			}
+
+			++numBestFound;
+		}
+	}
+
+	return bestChild;
 }
 
 JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 (JNIEnv* jenv, jobject jobjAI, jobject game, jobject context, jdouble maxSeconds,
 		jint maxIterations, jint maxDepth)
 {
+	std::random_device dev;
+	std::mt19937 rng(dev());
+
 	jobject wrappedGame = jenv->NewObject(clsLudiiGameWrapper, midLudiiGameWrapperCtor, game);
 	jobject wrappedRootContext = jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCtor, wrappedGame, context);
 
-	auto root = std::make_unique<MCTSNode>(jenv, nullptr, wrappedRootContext);
-	const int numPlayers = (int)jenv->CallIntMethod(wrappedGame, midNumPlayers);
+	const int32_t numPlayers = (int32_t)jenv->CallIntMethod(wrappedGame, midNumPlayers);
+	auto root = std::make_unique<MCTSNode>(jenv, nullptr, wrappedRootContext, numPlayers, rng);
 
 	// We'll respect time and iteration limits: ignore the maxDepth param
 	std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -200,7 +240,7 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 				break;
 			}
 
-			current = Select(jenv, current);
+			current = Select(jenv, current, rng);
 		}
 	}
 
