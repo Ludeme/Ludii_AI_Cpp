@@ -17,6 +17,7 @@ in the Java-based Ludii General Game System.
 
 - Java version 8 or higher (including JDK)
 - TODO JNI / C++ requirements
+- Version 1.3.9 or later of [Ludii](https://ludii.games/download.php)
 
 ## Getting Started
 

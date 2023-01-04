@@ -25,6 +25,7 @@ jmethodID midNumPlayers;
 jmethodID midLudiiStateWrapperCtor;
 jmethodID midLudiiStateWrapperCopyCtor;
 jmethodID midIsTerminal;
+jmethodID midLegalMovesArray;
 
 /**
  * It is good practice to call this after basically any call to a Java method
@@ -78,6 +79,9 @@ JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeStaticInit
 
 	midIsTerminal = jenv->GetMethodID(clsLudiiStateWrapper, "isTerminal", "()Z");
 	CheckJniException(jenv);
+
+	midLegalMovesArray = jenv->GetMethodID(clsLudiiStateWrapper, "legalMovesArray", "()[Lother/move/Move;");
+	CheckJniException(jenv);
 }
 
 /**
@@ -88,6 +92,17 @@ struct MCTSNode {
 		parent(parent), visitCount(0) {
 
 		this->wrappedState = jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCopyCtor, wrappedState);
+
+		const jobjectArray javaMovesArray =
+		      static_cast<jobjectArray>(jenv->CallObjectMethod(this->wrappedState, midLegalMovesArray));
+		CheckJniException(jenv);
+		const jsize numLegalMoves = jenv->GetArrayLength(javaMovesArray);
+
+		for (jsize i = 0; i < numLegalMoves; ++i) {
+			unexpandedMoves.push_back(jenv->NewGlobalRef(jenv->GetObjectArrayElement(javaMovesArray, i)));
+		}
+
+		jenv->DeleteLocalRef(javaMovesArray);
 	}
 
 	~MCTSNode() {
@@ -103,8 +118,13 @@ struct MCTSNode {
 		for (MCTSNode& childNode : childNodes) {
 			childNode.ClearAllJavaRefs(jenv);
 		}
+
+		for (size_t i = 0; i < unexpandedMoves.size(); ++i) {
+			jenv->DeleteGlobalRef(unexpandedMoves[i]);
+		}
 	}
 
+	std::vector<jobject> unexpandedMoves;
 	std::vector<MCTSNode> childNodes;
 	std::vector<double> scoreSums;
 	jobject wrappedState;
