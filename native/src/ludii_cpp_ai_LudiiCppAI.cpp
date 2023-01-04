@@ -1,7 +1,9 @@
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <random>
 #include <stdexcept>
 #include <vector>
 #include "ludii_cpp_ai_LudiiCppAI.h"
@@ -101,6 +103,8 @@ struct MCTSNode {
 		for (jsize i = 0; i < numLegalMoves; ++i) {
 			unexpandedMoves.push_back(jenv->NewGlobalRef(jenv->GetObjectArrayElement(javaMovesArray, i)));
 		}
+		auto rng = std::default_random_engine{};
+		std::shuffle(std::begin(unexpandedMoves), std::end(unexpandedMoves), rng);
 
 		jenv->DeleteLocalRef(javaMovesArray);
 	}
