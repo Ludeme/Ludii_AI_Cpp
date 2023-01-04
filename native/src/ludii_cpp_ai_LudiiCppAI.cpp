@@ -91,7 +91,7 @@ struct MCTSNode {
 	MCTSNode(JNIEnv* jenv, const std::shared_ptr<MCTSNode>& parent, jobject wrappedState) :
 		parent(parent), visitCount(0) {
 
-		this->wrappedState = jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCopyCtor, wrappedState);
+		this->wrappedState = jenv->NewGlobalRef(jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCopyCtor, wrappedState));
 
 		const jobjectArray javaMovesArray =
 		      static_cast<jobjectArray>(jenv->CallObjectMethod(this->wrappedState, midLegalMovesArray));
@@ -112,7 +112,7 @@ struct MCTSNode {
 	}
 
 	void ClearAllJavaRefs(JNIEnv* jenv) {
-		jenv->DeleteLocalRef(wrappedState);
+		jenv->DeleteGlobalRef(wrappedState);
 		wrappedState = nullptr;
 
 		for (MCTSNode& childNode : childNodes) {
@@ -178,7 +178,7 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 		}
 	}
 
-	// Clean up local refs to Java objects we created
+	// Clean up refs to Java objects we created
 	root->ClearAllJavaRefs(jenv);
 
 	jenv->DeleteLocalRef(wrappedGame);
