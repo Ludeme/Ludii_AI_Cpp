@@ -4,3 +4,4 @@
 /native/bin/
 /ludii.trl
 /ludii_preferences.json
+hs_err_pid*.log
