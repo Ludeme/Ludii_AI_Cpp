@@ -30,6 +30,8 @@ jmethodID midIsTerminal;
 jmethodID midLegalMovesArray;
 jmethodID midApplyMove;
 jmethodID midCurrentPlayer;
+jmethodID midRunRandomPlayout;
+jmethodID midReturns;
 
 /**
  * It is good practice to call this after basically any call to a Java method
@@ -91,6 +93,12 @@ JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeStaticInit
 	CheckJniException(jenv);
 
 	midCurrentPlayer = jenv->GetMethodID(clsLudiiStateWrapper, "currentPlayer", "()I");
+	CheckJniException(jenv);
+
+	midRunRandomPlayout = jenv->GetMethodID(clsLudiiStateWrapper, "runRandomPlayout", "()V");
+	CheckJniException(jenv);
+
+	midReturns = jenv->GetMethodID(clsLudiiStateWrapper, "returns", "()[D");
 	CheckJniException(jenv);
 }
 
@@ -258,8 +266,28 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 			// Need to copy in this case
 			stateEnd = jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCopyCtor, stateEnd);
 
-			// TODO actually run the playout
+			// Run the random playout
+			jenv->CallVoidMethod(stateEnd, midRunRandomPlayout);
 		}
+
+		const jdoubleArray returnsArray = static_cast<jdoubleArray>(jenv->CallObjectMethod(stateEnd, midReturns));
+		CheckJniException(jenv);
+		jdouble* returns = (jdouble*)jenv->GetPrimitiveArrayCritical(returnsArray, nullptr);
+
+		// Backpropagation
+		while (current) {
+			current->visitCount++;
+			for (int p = 0; p < numPlayers; ++p) {
+				current->scoreSums[p] += *(returns + p);
+			}
+			current = current->parent;
+		}
+
+		++numIterations;
+
+		// Clean up the java array
+		jenv->ReleasePrimitiveArrayCritical(returnsArray, returns, JNI_ABORT);
+		jenv->DeleteLocalRef(returnsArray);
 
 		if (ranPlayout) {
 			// We copied state to run a playout, so will have to clean up ref
