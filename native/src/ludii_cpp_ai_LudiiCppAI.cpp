@@ -106,10 +106,16 @@ JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeStaticInit
  * Node for MCTS
  */
 struct MCTSNode {
-	MCTSNode(JNIEnv* jenv, MCTSNode* parent, jobject wrappedState, const int32_t numPlayers, std::mt19937& rng) :
+	MCTSNode(JNIEnv* jenv, MCTSNode* parent, jobject wrappedState, jobject moveFromParent, const int32_t numPlayers, std::mt19937& rng) :
 		parent(parent), visitCount(0) {
 
 		this->wrappedState = jenv->NewGlobalRef(wrappedState);
+		if (moveFromParent) {
+			this->moveFromParent = jenv->NewGlobalRef(moveFromParent);
+		}
+		else {
+			this->moveFromParent = nullptr;
+		}
 
 		const jobjectArray javaMovesArray =
 		      static_cast<jobjectArray>(jenv->CallObjectMethod(this->wrappedState, midLegalMovesArray));
@@ -128,13 +134,22 @@ struct MCTSNode {
 
 	~MCTSNode() {
 		if (wrappedState != nullptr) {
-			std::cerr << "Warning! MCTSNode destructor called with non-null context!" << std::endl;
+			std::cerr << "Warning! MCTSNode destructor called with non-null state!" << std::endl;
+		}
+
+		if (moveFromParent != nullptr) {
+			std::cerr << "Warning! MCTSNode destructor called with non-null moveFromParent!" << std::endl;
 		}
 	}
 
 	void ClearAllJavaRefs(JNIEnv* jenv) {
 		jenv->DeleteGlobalRef(wrappedState);
 		wrappedState = nullptr;
+
+		if (moveFromParent) {
+			jenv->DeleteGlobalRef(moveFromParent);
+			moveFromParent = nullptr;
+		}
 
 		for (MCTSNode& childNode : childNodes) {
 			childNode.ClearAllJavaRefs(jenv);
@@ -149,9 +164,44 @@ struct MCTSNode {
 	std::vector<MCTSNode> childNodes;
 	std::vector<double> scoreSums;
 	jobject wrappedState;
+	jobject moveFromParent;
 	MCTSNode* parent;
 	uint32_t visitCount;
 };
+
+/**
+ * Selects move with maximum visit count
+ */
+jobject SelectBestMove(JNIEnv* jenv, MCTSNode* root, std::mt19937& rng) {
+	// Use UCB1 equation to select from all children, with random tie-breaking
+	MCTSNode* bestChild = nullptr;
+	int32_t bestVisitCount = -1;
+	int32_t numBestFound = 0;
+
+	size_t numChildren = root->childNodes.size();
+
+	for (size_t i = 0; i < numChildren; ++i) {
+		MCTSNode* child = &(root->childNodes[i]);
+		const uint32_t visitCount = child->visitCount;
+
+		if (visitCount > bestVisitCount) {
+			bestVisitCount = visitCount;
+			bestChild = child;
+			++numBestFound;
+		}
+		else if (visitCount == bestVisitCount) {
+			std::uniform_int_distribution<std::mt19937::result_type> dist(0, numBestFound + 1);
+
+			if (dist(rng) == 0) {
+				bestChild = child;
+			}
+
+			++numBestFound;
+		}
+	}
+
+	return bestChild->moveFromParent;
+}
 
 MCTSNode* Select(JNIEnv* jenv, MCTSNode* current, std::mt19937& rng) {
 	if (!current->unexpandedMoves.empty()) {
@@ -169,7 +219,7 @@ MCTSNode* Select(JNIEnv* jenv, MCTSNode* current, std::mt19937& rng) {
 		jenv->DeleteGlobalRef(unexpandedMove);
 
 		// Create expanded node and return it
-		current->childNodes.emplace_back(jenv, current, stateCopy, current->scoreSums.size(), rng);
+		current->childNodes.emplace_back(jenv, current, stateCopy, unexpandedMove, current->scoreSums.size(), rng);
 		return &(current->childNodes.back());
 	}
 
@@ -219,7 +269,7 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 	jobject wrappedRootContext = jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCtor, wrappedGame, context);
 
 	const int32_t numPlayers = (int32_t)jenv->CallIntMethod(wrappedGame, midNumPlayers);
-	auto root = std::make_unique<MCTSNode>(jenv, nullptr, wrappedRootContext, numPlayers, rng);
+	auto root = std::make_unique<MCTSNode>(jenv, nullptr, wrappedRootContext, nullptr, numPlayers, rng);
 
 	// We'll respect time and iteration limits: ignore the maxDepth param
 	std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -295,6 +345,9 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 		}
 	}
 
+	// Select the move we want to play
+	jobject bestMove = SelectBestMove(jenv, root.get(), rng);
+
 	// Clean up refs to Java objects we created
 	root->ClearAllJavaRefs(jenv);
 
@@ -302,7 +355,7 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 	jenv->DeleteLocalRef(wrappedRootContext);
 	CheckJniException(jenv);
 
-	return nullptr;
+	return bestMove;
 }
 
 JNIEXPORT void JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeInitAI
