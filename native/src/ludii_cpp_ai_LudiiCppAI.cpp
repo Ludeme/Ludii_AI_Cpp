@@ -411,21 +411,27 @@ JNIEXPORT jboolean JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSupportsGame
 	jobject wrappedGame = jenv->NewObject(clsLudiiGameWrapper, midLudiiGameWrapperCtor, game);
 
 	// Our example UCT does not support stochastic games
-	if (jenv->CallBooleanMethod(wrappedGame, midIsStochasticGame))
+	const bool isStochastic = jenv->CallBooleanMethod(wrappedGame, midIsStochasticGame);
+	CheckJniException(jenv);
+	if (isStochastic)
 	{
 		jenv->DeleteLocalRef(wrappedGame);
 		return false;
 	}
 
 	// We also don't support hidden info games
-	if (jenv->CallBooleanMethod(wrappedGame, midIsImperfectInformationGame))
+	const bool isImperfectInfo = jenv->CallBooleanMethod(wrappedGame, midIsImperfectInformationGame);
+	CheckJniException(jenv);
+	if (isImperfectInfo)
 	{
 		jenv->DeleteLocalRef(wrappedGame);
 		return false;
 	}
 
 	// And we don't support simultaneous-move games
-	if (jenv->CallBooleanMethod(wrappedGame, midIsSimultaneousMoveGame))
+	const bool isSimultaneousMove = jenv->CallBooleanMethod(wrappedGame, midIsSimultaneousMoveGame);
+	CheckJniException(jenv);
+	if (isSimultaneousMove)
 	{
 		jenv->DeleteLocalRef(wrappedGame);
 		return false;
