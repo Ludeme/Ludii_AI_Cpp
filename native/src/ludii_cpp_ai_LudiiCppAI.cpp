@@ -127,19 +127,10 @@ struct MCTSNode {
 		}
 		std::shuffle(std::begin(unexpandedMoves), std::end(unexpandedMoves), rng);
 
+		scoreSums = std::vector<double>(numPlayers);
 		std::fill(scoreSums.begin(), scoreSums.begin() + numPlayers, 0.0);
 
 		jenv->DeleteLocalRef(javaMovesArray);
-	}
-
-	~MCTSNode() {
-		if (wrappedState != nullptr) {
-			std::cerr << "Warning! MCTSNode destructor called with non-null state!" << std::endl;
-		}
-
-		if (moveFromParent != nullptr) {
-			std::cerr << "Warning! MCTSNode destructor called with non-null moveFromParent!" << std::endl;
-		}
 	}
 
 	void ClearAllJavaRefs(JNIEnv* jenv) {
@@ -182,12 +173,12 @@ jobject SelectBestMove(JNIEnv* jenv, MCTSNode* root, std::mt19937& rng) {
 
 	for (size_t i = 0; i < numChildren; ++i) {
 		MCTSNode* child = &(root->childNodes[i]);
-		const uint32_t visitCount = child->visitCount;
+		const int32_t visitCount = child->visitCount;
 
 		if (visitCount > bestVisitCount) {
 			bestVisitCount = visitCount;
 			bestChild = child;
-			++numBestFound;
+			numBestFound = 1;
 		}
 		else if (visitCount == bestVisitCount) {
 			std::uniform_int_distribution<std::mt19937::result_type> dist(0, numBestFound + 1);
@@ -215,11 +206,13 @@ MCTSNode* Select(JNIEnv* jenv, MCTSNode* current, std::mt19937& rng) {
 		jobject stateCopy = jenv->NewGlobalRef(jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCopyCtor, current->wrappedState));
 		jenv->CallVoidMethod(stateCopy, midApplyMove, unexpandedMove);
 
-		// No longer need this ref
+		// Create expanded node
+		current->childNodes.emplace_back(jenv, current, stateCopy, unexpandedMove, current->scoreSums.size(), rng);
+
+		// No longer need this global ref
 		jenv->DeleteGlobalRef(unexpandedMove);
 
-		// Create expanded node and return it
-		current->childNodes.emplace_back(jenv, current, stateCopy, unexpandedMove, current->scoreSums.size(), rng);
+		// Return the expanded node
 		return &(current->childNodes.back());
 	}
 
@@ -242,7 +235,7 @@ MCTSNode* Select(JNIEnv* jenv, MCTSNode* current, std::mt19937& rng) {
 		if (ucb1Value > bestValue) {
 			bestValue = ucb1Value;
 			bestChild = child;
-			++numBestFound;
+			numBestFound = 1;
 		}
 		else if (ucb1Value == bestValue) {
 			std::uniform_int_distribution<std::mt19937::result_type> dist(0, numBestFound + 1);
@@ -346,7 +339,7 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 	}
 
 	// Select the move we want to play
-	jobject bestMove = SelectBestMove(jenv, root.get(), rng);
+	jobject bestMove = jenv->NewLocalRef(SelectBestMove(jenv, root.get(), rng));
 
 	// Clean up refs to Java objects we created
 	root->ClearAllJavaRefs(jenv);
