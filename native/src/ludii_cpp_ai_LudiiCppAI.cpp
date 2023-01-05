@@ -109,7 +109,7 @@ struct MCTSNode {
 	MCTSNode(JNIEnv* jenv, MCTSNode* parent, jobject wrappedState, jobject moveFromParent, const int32_t numPlayers, std::mt19937& rng) :
 		parent(parent), visitCount(0) {
 
-		this->wrappedState = jenv->NewGlobalRef(wrappedState);
+		this->wrappedState = wrappedState;
 		if (moveFromParent) {
 			this->moveFromParent = jenv->NewGlobalRef(moveFromParent);
 		}
@@ -290,12 +290,12 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 
 	jobject wrappedGame = jenv->NewObject(clsLudiiGameWrapper, midLudiiGameWrapperCtor, game);
 	CheckJniException(jenv);
-	jobject wrappedRootContext = jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCtor, wrappedGame, context);
+	jobject wrappedRootState = jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCtor, wrappedGame, context);
 	CheckJniException(jenv);
 
 	const int32_t numPlayers = (int32_t)jenv->CallIntMethod(wrappedGame, midNumPlayers);
 	CheckJniException(jenv);
-	auto root = std::make_unique<MCTSNode>(jenv, nullptr, wrappedRootContext, nullptr, numPlayers, rng);
+	auto root = std::make_unique<MCTSNode>(jenv, nullptr, jenv->NewGlobalRef(wrappedRootState), nullptr, numPlayers, rng);
 
 	// We'll respect time and iteration limits: ignore the maxDepth param
 	std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -379,13 +379,12 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 
 	// Select the move we want to play
 	jobject bestMove = jenv->NewLocalRef(SelectBestMove(jenv, root.get(), rng));
-	std::cout << "Num iterations = " << numIterations << std::endl;
 
 	// Clean up refs to Java objects we created
 	root->ClearAllJavaRefs(jenv);
 
 	jenv->DeleteLocalRef(wrappedGame);
-	jenv->DeleteLocalRef(wrappedRootContext);
+	jenv->DeleteLocalRef(wrappedRootState);
 	CheckJniException(jenv);
 
 	return bestMove;
