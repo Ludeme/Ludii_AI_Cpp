@@ -123,7 +123,9 @@ struct MCTSNode {
 		const jsize numLegalMoves = jenv->GetArrayLength(javaMovesArray);
 
 		for (jsize i = 0; i < numLegalMoves; ++i) {
-			unexpandedMoves.push_back(jenv->NewGlobalRef(jenv->GetObjectArrayElement(javaMovesArray, i)));
+			jobject moveLocalRef = jenv->GetObjectArrayElement(javaMovesArray, i);
+			unexpandedMoves.push_back(jenv->NewGlobalRef(moveLocalRef));
+			jenv->DeleteLocalRef(moveLocalRef);
 		}
 		std::shuffle(std::begin(unexpandedMoves), std::end(unexpandedMoves), rng);
 
@@ -227,8 +229,9 @@ MCTSNode* Select(JNIEnv* jenv, MCTSNode* current, std::mt19937& rng) {
 		current->unexpandedMoves.pop_back();
 
 		// Create copy of our state so we can apply move to it
-		jobject stateCopy = jenv->NewGlobalRef(jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCopyCtor, current->wrappedState));
-		CheckJniException(jenv);
+		jobject stateCopyLocalRef = jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCopyCtor, current->wrappedState);
+		jobject stateCopy = jenv->NewGlobalRef(stateCopyLocalRef);
+		jenv->DeleteLocalRef(stateCopyLocalRef);
 		jenv->CallVoidMethod(stateCopy, midApplyMove, unexpandedMove);
 		CheckJniException(jenv);
 
