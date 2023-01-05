@@ -133,6 +133,30 @@ struct MCTSNode {
 		jenv->DeleteLocalRef(javaMovesArray);
 	}
 
+	MCTSNode(MCTSNode& other) = delete;
+	MCTSNode(MCTSNode&& other) {
+		unexpandedMoves = std::move(other.unexpandedMoves);
+		childNodes = std::move(other.childNodes);
+		scoreSums = std::move(other.scoreSums);
+		wrappedState = other.wrappedState;
+		moveFromParent = other.moveFromParent;
+		parent = other.parent;
+		visitCount = other.visitCount;
+
+		other.wrappedState = nullptr;
+		other.moveFromParent = nullptr;
+	}
+
+	~MCTSNode() {
+		if (wrappedState) {
+			std::cerr << "Warning! MCTSNode destructor called with non-null wrappedState!" << std::endl;
+		}
+
+		if (moveFromParent) {
+			std::cerr << "Warning! MCTSNode destructor called with non-null moveFromParent!" << std::endl;
+		}
+	}
+
 	void ClearAllJavaRefs(JNIEnv* jenv) {
 		jenv->DeleteGlobalRef(wrappedState);
 		wrappedState = nullptr;
@@ -204,7 +228,9 @@ MCTSNode* Select(JNIEnv* jenv, MCTSNode* current, std::mt19937& rng) {
 
 		// Create copy of our state so we can apply move to it
 		jobject stateCopy = jenv->NewGlobalRef(jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCopyCtor, current->wrappedState));
+		CheckJniException(jenv);
 		jenv->CallVoidMethod(stateCopy, midApplyMove, unexpandedMove);
+		CheckJniException(jenv);
 
 		// Create expanded node
 		current->childNodes.emplace_back(jenv, current, stateCopy, unexpandedMove, current->scoreSums.size(), rng);
@@ -224,6 +250,7 @@ MCTSNode* Select(JNIEnv* jenv, MCTSNode* current, std::mt19937& rng) {
 
 	size_t numChildren = current->childNodes.size();
 	int32_t mover = (int32_t) jenv->CallIntMethod(current->wrappedState, midCurrentPlayer);
+	CheckJniException(jenv);
 
 	for (size_t i = 0; i < numChildren; ++i) {
 		MCTSNode* child = &(current->childNodes[i]);
@@ -259,9 +286,12 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 	std::mt19937 rng(dev());
 
 	jobject wrappedGame = jenv->NewObject(clsLudiiGameWrapper, midLudiiGameWrapperCtor, game);
+	CheckJniException(jenv);
 	jobject wrappedRootContext = jenv->NewObject(clsLudiiStateWrapper, midLudiiStateWrapperCtor, wrappedGame, context);
+	CheckJniException(jenv);
 
 	const int32_t numPlayers = (int32_t)jenv->CallIntMethod(wrappedGame, midNumPlayers);
+	CheckJniException(jenv);
 	auto root = std::make_unique<MCTSNode>(jenv, nullptr, wrappedRootContext, nullptr, numPlayers, rng);
 
 	// We'll respect time and iteration limits: ignore the maxDepth param
@@ -286,7 +316,10 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 		MCTSNode* current = root.get();
 
 		while (true) {
-			if (jenv->CallBooleanMethod(current->wrappedState, midIsTerminal)) {
+			const bool isTerminal = jenv->CallBooleanMethod(current->wrappedState, midIsTerminal);
+			CheckJniException(jenv);
+
+			if (isTerminal) {
 				// Reached a terminal state in the tree
 				break;
 			}
@@ -302,7 +335,9 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 		jobject stateEnd = current->wrappedState;
 		bool ranPlayout = false;
 
-		if (!jenv->CallBooleanMethod(stateEnd, midIsTerminal)) {
+		const bool isTerminal = jenv->CallBooleanMethod(stateEnd, midIsTerminal);
+		CheckJniException(jenv);
+		if (!isTerminal) {
 			// Not terminal yet, so run a play-out
 			ranPlayout = true;
 
@@ -311,6 +346,7 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 
 			// Run the random playout
 			jenv->CallVoidMethod(stateEnd, midRunRandomPlayout);
+			CheckJniException(jenv);
 		}
 
 		const jdoubleArray returnsArray = static_cast<jdoubleArray>(jenv->CallObjectMethod(stateEnd, midReturns));
@@ -340,6 +376,7 @@ JNIEXPORT jobject JNICALL Java_ludii_1cpp_1ai_LudiiCppAI_nativeSelectAction
 
 	// Select the move we want to play
 	jobject bestMove = jenv->NewLocalRef(SelectBestMove(jenv, root.get(), rng));
+	std::cout << "Num iterations = " << numIterations << std::endl;
 
 	// Clean up refs to Java objects we created
 	root->ClearAllJavaRefs(jenv);
